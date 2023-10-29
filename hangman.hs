@@ -1,13 +1,15 @@
 import System.IO
 
+main :: IO ()
 main = forca
 
 forca :: IO ()
 forca = do
-    putStrLn "Digite uma palavra:"
+    putStr "Jogador 1, digite uma palavra: "
+    hFlush stdout -- flush the output buffer to print prompt before witing for user input
     palavra <- sgetLine
-    putStrLn "Tente adivinhar a palavra:"
-    play palavra
+    putStrLn "\nJogador 2, tente adivinhar a palavra!"
+    play palavra ""
 
 sgetLine :: IO String
 sgetLine = do
@@ -27,15 +29,20 @@ getCh = do
     hSetEcho stdin True
     return x
 
-play :: String -> IO ()
-play palavra = do
-    putStr "? "
-    chute <- getLine
-    if chute == palavra then
-        putStrLn "Você acertou!"
+play :: String -> String -> IO ()
+play palavra revealedWord = do
+    putStr "SEU CHUTE: "
+    hFlush stdout -- flush the output buffer to print prompt before witing for user input
+    guessLine <- getLine
+    if length guessLine == 1 then do
+        let guessWord = revealedWord ++ [guessLine!!0] -- append the guessed character to the list of correct guesses
+        let result = match palavra guessWord           -- get the word with the characters that have been guessed correctly
+        putStrLn ("\tResultado: " ++ result)
+        if result == palavra then putStrLn "Você acertou! Parabéns, você venceu!"
+        else play palavra guessWord
     else do
-        putStrLn (match palavra chute)
-        play palavra
+        putStrLn "\tVocê só pode chutar um caractere por vez. Por favor, tente novamente."
+        play palavra revealedWord
 
 match :: String -> String -> String
 match palavra chute = [if elem x chute then x else '-' | x <- palavra ]
