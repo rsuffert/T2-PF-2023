@@ -8,9 +8,12 @@ main = forca
 forca :: IO ()
 forca = do
     putStrLn "\n------------------- JOGO DA FORCA -------------------"
+    putStrLn "INSTRUÇÕES:"
+    putStrLn "  - Você só pode chutar uma letra por vez."
+    putStrLn "  - Se quiser desistir e revelar a palavra, digite 'sair' como seu chute.\n"
     mysteryWord <- pickRandomWord "words.txt"
     let wordHidden = ['-' | _ <- mysteryWord]
-    putStrLn ("Jogador, você deve adivinhar a palavra: " ++ wordHidden)
+    putStrLn ("Jogador, a dica da palavra que você deve adivinhar é: " ++ wordHidden)
     play mysteryWord ""
 
 pickRandomWord :: String -> IO String
@@ -30,7 +33,10 @@ play palavra revealedWord = do
     putStr "SEU CHUTE: "
     hFlush stdout -- flush the output buffer to print prompt before witing for user input
     guessLine <- getLine
-    if length guessLine == 1 then do
+    if (map toUpper guessLine) == "SAIR" then do
+        putStrLn ("Você desistiu! A palavra era " ++ "'" ++ palavra ++ "'.")
+        return ()
+    else if length guessLine == 1 then do
         let guessWord = revealedWord ++ [guessLine !! 0] -- append the guessed character to the list of correct guesses
         let result = match guessWord           -- get the word with the characters that have been guessed correctly
         putStrLn ("\tResultado: " ++ result)
@@ -47,12 +53,12 @@ play palavra revealedWord = do
         match chute = [if elem x chute then x else '-' | x <- palavra]
         retry :: IO ()
         retry = do
-            putStr "Você quer jogar de novo? [s/n] "
+            putStr "Você quer jogar de novo? [s/n]: "
             hFlush stdout -- flush the output buffer to print prompt before witing for user input
             response <- getLine
             let responseU = map toUpper response
             if responseU == "S" then forca
-            else if responseU == "N" then putStrLn "\tObrigado por jogar!"
+            else if responseU == "N" then putStrLn "Obrigado por jogar!"
             else do
                 putStrLn "\tOpção inválida. Por favor, tente novamente."
                 retry
