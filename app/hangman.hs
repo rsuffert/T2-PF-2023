@@ -7,10 +7,10 @@ main = forca
 forca :: IO ()
 forca = do
     putStrLn "\n------------------- JOGO DA FORCA -------------------"
-    word <- pickRandomWord "words.txt"
-    let wordHidden = ['-' | _ <- word]
+    mysteryWord <- pickRandomWord "words.txt"
+    let wordHidden = ['-' | _ <- mysteryWord]
     putStrLn ("Jogador, você deve adivinhar a palavra: " ++ wordHidden)
-    play word ""
+    play mysteryWord ""
 
 pickRandomWord :: String -> IO String
 pickRandomWord fileName = do
