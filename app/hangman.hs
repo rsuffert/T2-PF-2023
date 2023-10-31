@@ -1,26 +1,30 @@
 import System.IO
 import System.Random
 import Data.Char
+import Data.List.Split (splitOn)
 
 main :: IO ()
 main = forca
 
 forca :: IO ()
 forca = do
-    putStrLn "\n------------------- JOGO DA FORCA -------------------"
+    putStrLn "\n----------------------- JOGO DA FORCA -----------------------"
     putStrLn "INSTRUÇÕES:"
-    putStrLn "  - Você só pode chutar uma letra por vez."
-    putStrLn "  - Se quiser desistir e revelar a palavra, digite 'sair' como seu chute.\n"
-    mysteryWord <- pickRandomWord "words.txt"
+    putStrLn "  - Exceto pelos comandos especiais abaico, você só pode chutar uma letra por vez."
+    putStrLn "  - Se quiser uma dica, digite ':hint' como seu chute."
+    putStrLn "  - Se quiser desistir e revelar a palavra, digite ':quit' como seu chute.\n"
+    (mysteryWord, hint) <- pickRandomWord "words.txt"
     let wordHidden = ['-' | _ <- mysteryWord]
-    putStrLn ("Jogador, a dica da palavra que você deve adivinhar é: " ++ wordHidden)
-    play mysteryWord wordHidden
+    putStrLn ("Jogador, a dica inicial da palavra que você deve adivinhar é: " ++ wordHidden)
+    play mysteryWord wordHidden hint
 
-pickRandomWord :: String -> IO String
+pickRandomWord :: String -> IO (String, String)
 pickRandomWord fileName = do
     words <- loadWords fileName
-    randomIdx <- randomRIO (0, length words - 1)
-    return (words !! randomIdx)
+    randomIdx <- randomRIO (1, length words - 1)
+    let wordAndHint = splitOn ";" (words !! randomIdx)
+    if length wordAndHint == 2 then return ((wordAndHint!!0), (wordAndHint!!1))
+    else error ("Esperava ler do arquivo a palavra seguida de sua dica, separados por ';', mas li: '" ++ (words !! randomIdx) ++ "'.")
     where
         loadWords :: FilePath -> IO [String]
         loadWords file  = do
@@ -28,15 +32,18 @@ pickRandomWord fileName = do
             let wordList = words contents
             return wordList
 
-play :: String -> String -> IO ()
-play palavra revealedWord = do
-    (palavra, revealedWord) <- checkWordChange palavra revealedWord -- evaluate if we're changing the word
+play :: String -> String -> String -> IO ()
+play palavra revealedWord hint = do
+    (palavra, revealedWord, hint) <- checkWordChange palavra revealedWord hint -- evaluate if we're changing the word
     putStr "SEU CHUTE: "
     hFlush stdout -- flush the output buffer to print prompt before witing for user input
     guessLine <- getLine
-    if (map toUpper guessLine) == "SAIR" then do
+    if (map toUpper guessLine) == ":QUIT" then do
         putStrLn ("Você desistiu! A palavra era " ++ "'" ++ palavra ++ "'.")
         return ()
+    else if (map toUpper guessLine) == ":HINT" then do
+        putStrLn ("\tSua dica é: '" ++ hint ++ "'.")
+        play palavra revealedWord hint
     else if length guessLine == 1 then do
         let guessWord = revealedWord ++ [guessLine !! 0] -- append the guessed character to the list of correct guesses
         let result = match palavra guessWord           -- get the word with the characters that have been guessed correctly
@@ -45,10 +52,10 @@ play palavra revealedWord = do
             putStrLn "Você acertou! Parabéns, você venceu!"
             retry
         else 
-            play palavra result
+            play palavra result hint
     else do
-        putStrLn "\tVocê só pode chutar um caractere por vez. Por favor, tente novamente."
-        play palavra revealedWord
+        putStrLn "\tVocê só pode chutar uma letra por vez. Por favor, tente novamente."
+        play palavra revealedWord hint
     where 
         match :: String -> String -> String
         match palavra chute = [if elem x chute then x else '-' | x <- palavra]
@@ -63,15 +70,15 @@ play palavra revealedWord = do
             else do
                 putStrLn "\tOpção inválida. Por favor, tente novamente."
                 retry
-        checkWordChange :: String -> String -> IO (String, String)
-        checkWordChange mysteryWord revealedMysteryWord = do
+        checkWordChange :: String -> String -> String -> IO (String, String, String)
+        checkWordChange mysteryWord revealedMysteryWord hint = do
             let missingChars = length (filter (== '-') revealedMysteryWord)
             if missingChars == 1 then do
                 r <- (randomRIO :: (Int, Int) -> IO Int) (1, 10)
                 if r <= 3 then do -- simulate 30% of chance
-                    newMysteryWord <- pickRandomWord "words.txt"
+                    (newMysteryWord, newHint) <- pickRandomWord "words.txt"
                     let newRevealedMysteryWord = match newMysteryWord revealedMysteryWord -- match the current characters the user had guessed in the previous word with the new mystery word
                     putStrLn ("ATENÇÃO: A PALAVRA MUDOU! Sua nova dica é: " ++ newRevealedMysteryWord)
-                    return (newMysteryWord, newRevealedMysteryWord)
-                else return (mysteryWord, revealedMysteryWord)
-            else return (mysteryWord, revealedMysteryWord)
+                    return (newMysteryWord, newRevealedMysteryWord, newHint)
+                else return (mysteryWord, revealedMysteryWord, hint)
+            else return (mysteryWord, revealedMysteryWord, hint)
