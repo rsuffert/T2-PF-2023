@@ -10,13 +10,13 @@ forca :: IO ()
 forca = do
     putStrLn "\n----------------------- JOGO DA FORCA -----------------------"
     putStrLn "INSTRUÇÕES:"
-    putStrLn "  - Exceto pelos comandos especiais abaico, você só pode chutar uma letra por vez."
+    putStrLn "  - Exceto pelos comandos especiais abaixo, você só pode chutar uma letra por vez."
     putStrLn "  - Se quiser uma dica, digite ':hint' como seu chute."
     putStrLn "  - Se quiser desistir e revelar a palavra, digite ':quit' como seu chute.\n"
     (mysteryWord, hint) <- pickRandomWord "words.txt"
     let wordHidden = ['-' | _ <- mysteryWord]
     putStrLn ("Jogador, a dica inicial da palavra que você deve adivinhar é: " ++ wordHidden)
-    play mysteryWord wordHidden hint
+    play mysteryWord wordHidden hint []
 
 pickRandomWord :: String -> IO (String, String)
 pickRandomWord fileName = do
@@ -32,30 +32,40 @@ pickRandomWord fileName = do
             let wordList = words contents
             return wordList
 
-play :: String -> String -> String -> IO ()
-play palavra revealedWord hint = do
+play :: String -> String -> String -> [Char] -> IO ()
+play palavra revealedWord hint incorrectGuesses = do
     (palavra, revealedWord, hint) <- checkWordChange palavra revealedWord hint -- evaluate if we're changing the word
+    putStrLn ("Letras incorretas: " ++ incorrectGuesses)
     putStr "SEU CHUTE: "
-    hFlush stdout -- flush the output buffer to print prompt before witing for user input
+    hFlush stdout -- flush the output buffer to print prompt before waiting for user input
     guessLine <- getLine
     if (map toUpper guessLine) == ":QUIT" then do
         putStrLn ("Você desistiu! A palavra era " ++ "'" ++ palavra ++ "'.")
         return ()
     else if (map toUpper guessLine) == ":HINT" then do
         putStrLn ("\tSua dica é: '" ++ hint ++ "'.")
-        play palavra revealedWord hint
+        play palavra revealedWord hint incorrectGuesses
     else if length guessLine == 1 then do
-        let guessWord = revealedWord ++ [guessLine !! 0] -- append the guessed character to the list of correct guesses
-        let result = match palavra guessWord           -- get the word with the characters that have been guessed correctly
-        putStrLn ("\tResultado: " ++ result)
-        if result == palavra then do
-            putStrLn "Você acertou! Parabéns, você venceu!"
-            retry
-        else 
-            play palavra result hint
+        let guessedChar = guessLine !! 0
+        if guessedChar `elem` palavra then do
+            let guessWord = revealedWord ++ [guessedChar] 
+            let result = match palavra guessWord           
+            putStrLn ("\tResultado: " ++ result)
+            if result == palavra then do
+                putStrLn "Você acertou! Parabéns, você venceu!"
+                retry
+            else 
+                play palavra result hint incorrectGuesses
+        else do
+            putStrLn ("\tA letra '" ++ [guessedChar] ++ "' não está na palavra.")
+            if guessedChar `elem` incorrectGuesses then do
+                putStrLn "\tVocê já chutou essa letra antes. Por favor, tente novamente."
+                play palavra revealedWord hint incorrectGuesses
+            else
+                play palavra revealedWord hint (incorrectGuesses ++ [guessedChar])
     else do
         putStrLn "\tVocê só pode chutar uma letra por vez. Por favor, tente novamente."
-        play palavra revealedWord hint
+        play palavra revealedWord hint incorrectGuesses
     where 
         match :: String -> String -> String
         match palavra chute = [if elem x chute then x else '-' | x <- palavra]
