@@ -15,8 +15,9 @@ forca = do
     putStrLn "  - Se quiser desistir e revelar a palavra, digite ':quit' como seu chute.\n"
     (mysteryWord, hint) <- pickRandomWord "words.txt"
     let wordHidden = ['-' | _ <- mysteryWord]
+    let stickFigure = emptyStickFigure 
     putStrLn ("Jogador, a dica inicial da palavra que você deve adivinhar é: " ++ wordHidden)
-    play mysteryWord wordHidden hint []
+    play mysteryWord wordHidden hint stickFigure [] 
 
 pickRandomWord :: String -> IO (String, String)
 pickRandomWord fileName = do
@@ -32,40 +33,66 @@ pickRandomWord fileName = do
             let wordList = words contents
             return wordList
 
-play :: String -> String -> String -> [Char] -> IO ()
-play palavra revealedWord hint incorrectGuesses = do
-    (palavra, revealedWord, hint) <- checkWordChange palavra revealedWord hint -- evaluate if we're changing the word
+type StickFigure = [String]
+
+emptyStickFigure :: StickFigure
+emptyStickFigure =
+    [ "  O"
+    , " /|\\"
+    , "  |"
+    , " / \\"
+    ]
+removeBodyPart :: StickFigure -> StickFigure
+removeBodyPart [] = []
+removeBodyPart (_:rest) = rest
+endGame :: IO ()
+endGame = do
+    putStrLn "Você perdeu! O boneco de palito perdeu todas as vidas."
+    putStrLn "Obrigado por jogar!"
+    return ()
+
+play :: String -> String -> String -> StickFigure -> [Char] -> IO ()
+play palavra revealedWord hint stickFigure incorrectGuesses = do
+    (palavra, revealedWord, hint) <- checkWordChange palavra revealedWord hint
+    putStrLn ("-------------------------")
     putStrLn ("Letras incorretas: " ++ incorrectGuesses)
+    putStrLn ("Jogador, a dica da palavra que você deve adivinhar é: " ++ revealedWord)
+    putStrLn ("Boneco de Palito:\n\n" ++ unlines stickFigure)
     putStr "SEU CHUTE: "
     hFlush stdout -- flush the output buffer to print prompt before waiting for user input
     guessLine <- getLine
+    let guessedChar = if null guessLine then ' ' else head guessLine
     if (map toUpper guessLine) == ":QUIT" then do
         putStrLn ("Você desistiu! A palavra era " ++ "'" ++ palavra ++ "'.")
         return ()
     else if (map toUpper guessLine) == ":HINT" then do
         putStrLn ("\tSua dica é: '" ++ hint ++ "'.")
-        play palavra revealedWord hint incorrectGuesses
+        play palavra revealedWord hint stickFigure incorrectGuesses
     else if length guessLine == 1 then do
-        let guessedChar = guessLine !! 0
         if guessedChar `elem` palavra then do
-            let guessWord = revealedWord ++ [guessedChar] 
-            let result = match palavra guessWord           
-            putStrLn ("\tResultado: " ++ result)
-            if result == palavra then do
+            let guessWord = [if x == guessedChar || x `elem` revealedWord then x else '-' | x <- palavra]
+            putStrLn ("\tResultado: " ++ guessWord)
+            if guessWord == palavra then do
                 putStrLn "Você acertou! Parabéns, você venceu!"
                 retry
             else 
-                play palavra result hint incorrectGuesses
+                play palavra guessWord hint stickFigure incorrectGuesses
         else do
             putStrLn ("\tA letra '" ++ [guessedChar] ++ "' não está na palavra.")
-            if guessedChar `elem` incorrectGuesses then do
-                putStrLn "\tVocê já chutou essa letra antes. Por favor, tente novamente."
-                play palavra revealedWord hint incorrectGuesses
+            let updatedStickFigure = removeBodyPart stickFigure
+            putStrLn ("\n        !!! O boneco de Palito perdeu um membro !!! \n\n" ++ unlines updatedStickFigure)
+            if length updatedStickFigure == 0 then do
+                endGame
+                retry
             else
-                play palavra revealedWord hint (incorrectGuesses ++ [guessedChar])
+                if guessedChar `elem` incorrectGuesses then do
+                    putStrLn "\tVocê já chutou essa letra antes. Por favor, tente novamente."
+                    play palavra revealedWord hint updatedStickFigure incorrectGuesses
+                else
+                    play palavra revealedWord hint updatedStickFigure (incorrectGuesses ++ [guessedChar])
     else do
-        putStrLn "\tVocê só pode chutar uma letra por vez. Por favor, tente novamente."
-        play palavra revealedWord hint incorrectGuesses
+        putStrLn "\tEntrada inválida. Por favor, chute uma letra válida."
+        play palavra revealedWord hint stickFigure incorrectGuesses
     where 
         match :: String -> String -> String
         match palavra chute = [if elem x chute then x else '-' | x <- palavra]
