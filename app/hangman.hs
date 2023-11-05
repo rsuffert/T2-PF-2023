@@ -34,6 +34,7 @@ pickRandomWord fileName = do
 
 play :: String -> String -> String -> String -> IO ()
 play palavra revealedWord hint missedChars = do
+    drawHangman (length missedChars `div` 2) -- divide by two because we add a whitespace after each character in the string
     (palavra, revealedWord, hint) <- checkWordChange palavra revealedWord hint -- evaluate if we're changing the word
     putStr "SEU CHUTE: "
     hFlush stdout -- flush the output buffer to print prompt before witing for user input
@@ -53,8 +54,9 @@ play palavra revealedWord hint missedChars = do
         if result == palavra then do
             putStrLn "Você acertou! Parabéns, você venceu!"
             retry
-        else if length newMissedChars `div` 2 == 6 then -- the hangman has been fully drawn and the user has lost the game
-            putStrLn "Suas vidas acabaram. Você perdeu. :("
+        else if length newMissedChars `div` 2 == 6 then do -- the hangman has been fully drawn and the user has lost the game (divide by 2 because we add a whitespace after each character in the string)
+            drawHangman (length newMissedChars `div` 2) -- divide by two because we add a whitespace after each character in the string
+            putStrLn "O enforcado está completo... Você perdeu. :("
         else 
             play palavra result hint newMissedChars
     else do
@@ -90,3 +92,23 @@ play palavra revealedWord hint missedChars = do
         checkError prevRevealedWord newRevealedWord missedChars guessedChar 
             | newRevealedWord == prevRevealedWord && not (elem guessedChar missedChars) = missedChars++[guessedChar]++" " -- the user's guess was incorrect and they have not been penalized for it yet
             | otherwise = missedChars
+        drawHangman :: Int -> IO ()
+        drawHangman misses = do
+            let members = [" O", "      /", "|", "\\", "     / ", "\\"]
+            let head = buildHead members misses
+            let body = buildBody members misses
+            let legs = buildLegs members misses
+            putStrLn (" |------" ++ head)
+            putStrLn (" |"       ++ body)
+            putStrLn ("_|_"      ++ legs)
+            where
+                buildHead :: [String] -> Int -> String
+                buildHead members misses | misses == 0 = ""
+                                        | otherwise   = members !! 0
+                buildBody :: [String] -> Int -> String
+                buildBody members misses | misses < 2 = ""
+                                        | misses > 4 = buildBody members (misses-1)
+                                        | otherwise  = (buildBody members (misses-1)) ++ (members !! (misses-1))
+                buildLegs :: [String] -> Int -> String
+                buildLegs members misses | misses < 5 = ""
+                                        | otherwise  = (buildLegs members (misses-1)) ++ (members !! (misses-1))
