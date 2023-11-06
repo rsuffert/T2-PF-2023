@@ -8,7 +8,7 @@ main = forca
 
 forca :: IO ()
 forca = do
-    putStrLn "\n----------------------- JOGO DA FORCA -----------------------"
+    putStrLn "\n========================= JOGO DA FORCA ========================="
     putStrLn "INSTRUÇÕES:"
     putStrLn "  - Exceto pelos comandos especiais abaixo, você só pode chutar uma letra por vez."
     putStrLn "  - Se quiser uma dica, digite ':hint' como seu chute."
@@ -16,7 +16,7 @@ forca = do
     (mysteryWord, hint) <- pickRandomWord "words.txt"
     let wordHidden = ['-' | _ <- mysteryWord]
     putStrLn ("Jogador, a dica inicial da palavra que você deve adivinhar é: " ++ wordHidden)
-    play mysteryWord wordHidden hint ""
+    play mysteryWord wordHidden hint "" 1
 
 pickRandomWord :: String -> IO (String, String)
 pickRandomWord fileName = do
@@ -32,8 +32,9 @@ pickRandomWord fileName = do
             let wordList = words contents
             return wordList
 
-play :: String -> String -> String -> String -> IO ()
-play palavra revealedWord hint missedChars = do
+play :: String -> String -> String -> String -> Int -> IO ()
+play palavra revealedWord hint missedChars currentRound = do
+    putStrLn ("\n-------------------------- RODADA " ++ (show currentRound) ++ " --------------------------")
     drawHangman (length missedChars `div` 2) -- divide by two because we add a whitespace after each character in the string
     (palavra, revealedWord, hint) <- checkWordChange palavra revealedWord hint -- evaluate if we're changing the word
     putStr "SEU CHUTE: "
@@ -44,7 +45,7 @@ play palavra revealedWord hint missedChars = do
         return ()
     else if (map toUpper guessLine) == ":HINT" then do
         putStrLn ("\tSua dica é: '" ++ hint ++ "'.")
-        play palavra revealedWord hint missedChars
+        play palavra revealedWord hint missedChars currentRound
     else if length guessLine == 1 then do
         let guessWord = revealedWord ++ [guessLine !! 0] -- append the guessed character to the list of correct guesses
         let result = match palavra guessWord           -- get the word with the characters that have been guessed correctly
@@ -58,10 +59,10 @@ play palavra revealedWord hint missedChars = do
             drawHangman (length newMissedChars `div` 2) -- divide by two because we add a whitespace after each character in the string
             putStrLn "O enforcado está completo... Você perdeu. :("
         else 
-            play palavra result hint newMissedChars
+            play palavra result hint newMissedChars (currentRound+1)
     else do
         putStrLn "\tVocê só pode chutar uma letra por vez. Por favor, tente novamente."
-        play palavra revealedWord hint missedChars
+        play palavra revealedWord hint missedChars currentRound
     where 
         match :: String -> String -> String
         match palavra chute = [if elem x chute then x else '-' | x <- palavra]
