@@ -4,8 +4,8 @@ version:            0.1.0.0
 
 synopsis: Implementation of a hangman game for the Functional Programming class.
 
-author:             Ricardo Süffert
-maintainer:         ricardobsuffert@gmail.com
+author:             Ricardo Süffert & Vinícius Turani
+maintainer:         ricardobsuffert@gmail.com & v.turani@edu.pucrs.br
 
 extra-source-files:
     CHANGELOG.md
