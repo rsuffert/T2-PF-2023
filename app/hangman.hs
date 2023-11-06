@@ -98,13 +98,16 @@ play palavra revealedWord hint missedChars currentRound = do
             | otherwise = missedChars
         drawHangman :: Int -> IO ()
         drawHangman misses = do
-            let members = [" O", "      /", "|", "\\", "     / ", "\\"]
+            let members = [" O", "      /", "|", "\\", "      / ", "\\"]
             let head = buildHead members misses
             let body = buildBody members misses
             let legs = buildLegs members misses
+            putStrLn ""
             putStrLn (" |------" ++ head)
             putStrLn (" |"       ++ body)
-            putStrLn ("_|_"      ++ legs)
+            putStrLn (" |"       ++ legs)
+            putStrLn ("_|_")
+            putStrLn ""
             where
                 buildHead :: [String] -> Int -> String
                 buildHead members misses | misses == 0 = ""
