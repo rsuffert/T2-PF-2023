@@ -35,6 +35,7 @@ pickRandomWord fileName = do
 play :: String -> String -> String -> String -> Int -> IO ()
 play palavra revealedWord hint missedChars currentRound = do
     putStrLn ("\n-------------------------- RODADA " ++ (show currentRound) ++ " --------------------------")
+    putStrLn (" Voce ainda tem " ++ (show (6 - (length missedChars `div` 2))) ++ " tentativas.")
     drawHangman (length missedChars `div` 2) -- divide by two because we add a whitespace after each character in the string
     (palavra, revealedWord, hint) <- checkWordChange palavra revealedWord hint -- evaluate if we're changing the word
     putStr "SEU CHUTE: "
