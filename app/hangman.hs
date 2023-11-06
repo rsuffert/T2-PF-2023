@@ -60,6 +60,7 @@ play palavra revealedWord hint missedChars currentRound = do
         else if length newMissedChars `div` 2 == 6 then do -- the hangman has been fully drawn and the user has lost the game (divide by 2 because we add a whitespace after each character in the string)
             drawHangman (length newMissedChars `div` 2) -- divide by two because we add a whitespace after each character in the string
             putStrLn "O enforcado está completo... Você perdeu. :("
+            retry
         else 
             play palavra result hint newMissedChars (currentRound+1)
     else do
