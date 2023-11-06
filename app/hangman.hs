@@ -39,8 +39,9 @@ play palavra revealedWord hint missedChars currentRound = do
     drawHangman (length missedChars `div` 2) -- divide by two because we add a whitespace after each character in the string
     (palavra, revealedWord, hint) <- checkWordChange palavra revealedWord hint -- evaluate if we're changing the word
     putStr "SEU CHUTE: "
-    hFlush stdout -- flush the output buffer to print prompt before witing for user input
+    hFlush stdout -- flush the output buffer to print prompt before waiting for user input
     guessLine <- getLine
+    let guessedChar = if null guessLine then ' ' else head guessLine
     if (map toUpper guessLine) == ":QUIT" then do
         putStrLn ("Você desistiu! A palavra era " ++ "'" ++ palavra ++ "'.")
         return ()
