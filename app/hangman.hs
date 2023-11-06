@@ -8,16 +8,15 @@ main = forca
 
 forca :: IO ()
 forca = do
-    putStrLn "\n----------------------- JOGO DA FORCA -----------------------"
+    putStrLn "\n========================= JOGO DA FORCA ========================="
     putStrLn "INSTRUÇÕES:"
     putStrLn "  - Exceto pelos comandos especiais abaixo, você só pode chutar uma letra por vez."
     putStrLn "  - Se quiser uma dica, digite ':hint' como seu chute."
     putStrLn "  - Se quiser desistir e revelar a palavra, digite ':quit' como seu chute.\n"
     (mysteryWord, hint) <- pickRandomWord "words.txt"
     let wordHidden = ['-' | _ <- mysteryWord]
-    let stickFigure = emptyStickFigure 
     putStrLn ("Jogador, a dica inicial da palavra que você deve adivinhar é: " ++ wordHidden)
-    play mysteryWord wordHidden hint stickFigure [] 
+    play mysteryWord wordHidden hint "" 1
 
 pickRandomWord :: String -> IO (String, String)
 pickRandomWord fileName = do
@@ -33,31 +32,12 @@ pickRandomWord fileName = do
             let wordList = words contents
             return wordList
 
-type StickFigure = [String]
-
-emptyStickFigure :: StickFigure
-emptyStickFigure =
-    [ "  O"
-    , " /|\\"
-    , "  |"
-    , " / \\"
-    ]
-removeBodyPart :: StickFigure -> StickFigure
-removeBodyPart [] = []
-removeBodyPart (_:rest) = rest
-endGame :: IO ()
-endGame = do
-    putStrLn "Você perdeu! O boneco de palito perdeu todas as vidas."
-    putStrLn "Obrigado por jogar!"
-    return ()
-
-play :: String -> String -> String -> StickFigure -> [Char] -> IO ()
-play palavra revealedWord hint stickFigure incorrectGuesses = do
-    (palavra, revealedWord, hint) <- checkWordChange palavra revealedWord hint
-    putStrLn ("-------------------------")
-    putStrLn ("Letras incorretas: " ++ incorrectGuesses)
-    putStrLn ("Jogador, a dica da palavra que você deve adivinhar é: " ++ revealedWord)
-    putStrLn ("Boneco de Palito:\n\n" ++ unlines stickFigure)
+play :: String -> String -> String -> String -> Int -> IO ()
+play palavra revealedWord hint missedChars currentRound = do
+    putStrLn ("\n-------------------------- RODADA " ++ (show currentRound) ++ " --------------------------")
+    putStrLn ("Você ainda tem " ++ (show (6 - (length missedChars `div` 2))) ++ " tentativas.")
+    drawHangman (length missedChars `div` 2) -- divide by two because we add a whitespace after each character in the string
+    (palavra, revealedWord, hint) <- checkWordChange palavra revealedWord hint -- evaluate if we're changing the word
     putStr "SEU CHUTE: "
     hFlush stdout -- flush the output buffer to print prompt before waiting for user input
     guessLine <- getLine
@@ -67,32 +47,24 @@ play palavra revealedWord hint stickFigure incorrectGuesses = do
         return ()
     else if (map toUpper guessLine) == ":HINT" then do
         putStrLn ("\tSua dica é: '" ++ hint ++ "'.")
-        play palavra revealedWord hint stickFigure incorrectGuesses
+        play palavra revealedWord hint missedChars currentRound
     else if length guessLine == 1 then do
-        if guessedChar `elem` palavra then do
-            let guessWord = [if x == guessedChar || x `elem` revealedWord then x else '-' | x <- palavra]
-            putStrLn ("\tResultado: " ++ guessWord)
-            if guessWord == palavra then do
-                putStrLn "Você acertou! Parabéns, você venceu!"
-                retry
-            else 
-                play palavra guessWord hint stickFigure incorrectGuesses
-        else do
-            putStrLn ("\tA letra '" ++ [guessedChar] ++ "' não está na palavra.")
-            let updatedStickFigure = removeBodyPart stickFigure
-            putStrLn ("\n        !!! O boneco de Palito perdeu um membro !!! \n\n" ++ unlines updatedStickFigure)
-            if length updatedStickFigure == 0 then do
-                endGame
-                retry
-            else
-                if guessedChar `elem` incorrectGuesses then do
-                    putStrLn "\tVocê já chutou essa letra antes. Por favor, tente novamente."
-                    play palavra revealedWord hint updatedStickFigure incorrectGuesses
-                else
-                    play palavra revealedWord hint updatedStickFigure (incorrectGuesses ++ [guessedChar])
+        let guessWord = revealedWord ++ [guessLine !! 0] -- append the guessed character to the list of correct guesses
+        let result = match palavra guessWord           -- get the word with the characters that have been guessed correctly
+        let newMissedChars = checkError revealedWord result missedChars (guessLine !! 0)
+        putStrLn ("\tChutes incorretos: " ++ newMissedChars)
+        putStrLn ("\tResultado: " ++ result)
+        if result == palavra then do
+            putStrLn "Você acertou! Parabéns, você venceu!"
+            retry
+        else if length newMissedChars `div` 2 == 6 then do -- the hangman has been fully drawn and the user has lost the game (divide by 2 because we add a whitespace after each character in the string)
+            drawHangman (length newMissedChars `div` 2) -- divide by two because we add a whitespace after each character in the string
+            putStrLn "O enforcado está completo... Você perdeu. :("
+        else 
+            play palavra result hint newMissedChars (currentRound+1)
     else do
-        putStrLn "\tEntrada inválida. Por favor, chute uma letra válida."
-        play palavra revealedWord hint stickFigure incorrectGuesses
+        putStrLn "\tVocê só pode chutar uma letra por vez. Por favor, tente novamente."
+        play palavra revealedWord hint missedChars currentRound
     where 
         match :: String -> String -> String
         match palavra chute = [if elem x chute then x else '-' | x <- palavra]
@@ -119,3 +91,27 @@ play palavra revealedWord hint stickFigure incorrectGuesses = do
                     return (newMysteryWord, newRevealedMysteryWord, newHint)
                 else return (mysteryWord, revealedMysteryWord, hint)
             else return (mysteryWord, revealedMysteryWord, hint)
+        checkError :: String -> String -> String -> Char -> String
+        checkError prevRevealedWord newRevealedWord missedChars guessedChar 
+            | newRevealedWord == prevRevealedWord && not (elem guessedChar missedChars) = missedChars++[guessedChar]++" " -- the user's guess was incorrect and they have not been penalized for it yet
+            | otherwise = missedChars
+        drawHangman :: Int -> IO ()
+        drawHangman misses = do
+            let members = [" O", "      /", "|", "\\", "     / ", "\\"]
+            let head = buildHead members misses
+            let body = buildBody members misses
+            let legs = buildLegs members misses
+            putStrLn (" |------" ++ head)
+            putStrLn (" |"       ++ body)
+            putStrLn ("_|_"      ++ legs)
+            where
+                buildHead :: [String] -> Int -> String
+                buildHead members misses | misses == 0 = ""
+                                        | otherwise   = members !! 0
+                buildBody :: [String] -> Int -> String
+                buildBody members misses | misses < 2 = ""
+                                        | misses > 4 = buildBody members (misses-1)
+                                        | otherwise  = (buildBody members (misses-1)) ++ (members !! (misses-1))
+                buildLegs :: [String] -> Int -> String
+                buildLegs members misses | misses < 5 = ""
+                                        | otherwise  = (buildLegs members (misses-1)) ++ (members !! (misses-1))
