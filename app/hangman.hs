@@ -37,7 +37,7 @@ play palavra revealedWord hint missedChars currentRound = do
     putStrLn ("\n-------------------------- RODADA " ++ (show currentRound) ++ " --------------------------")
     putStrLn ("Você ainda tem " ++ (show (6 - (length missedChars `div` 2))) ++ " tentativas.")
     drawHangman (length missedChars `div` 2) -- divide by two because we add a whitespace after each character in the string
-    (palavra, revealedWord, hint) <- checkWordChange palavra revealedWord hint -- evaluate if we're changing the word
+    (palavra, revealedWord, hint, missedChars) <- checkWordChange palavra revealedWord hint missedChars -- evaluate if we're changing the word
     putStr "SEU CHUTE: "
     hFlush stdout -- flush the output buffer to print prompt before waiting for user input
     guessLine <- getLine
@@ -80,18 +80,18 @@ play palavra revealedWord hint missedChars currentRound = do
             else do
                 putStrLn "\tOpção inválida. Por favor, tente novamente."
                 retry
-        checkWordChange :: String -> String -> String -> IO (String, String, String)
-        checkWordChange mysteryWord revealedMysteryWord hint = do
+        checkWordChange :: String -> String -> String -> String -> IO (String, String, String, String)
+        checkWordChange mysteryWord revealedMysteryWord hint missedChars = do
             let missingChars = length (filter (== '-') revealedMysteryWord)
             if missingChars == 1 then do
                 r <- (randomRIO :: (Int, Int) -> IO Int) (1, 10)
                 if r <= 3 then do -- simulate 30% of chance
                     (newMysteryWord, newHint) <- pickRandomWord "words.txt"
                     let newRevealedMysteryWord = match newMysteryWord revealedMysteryWord -- match the current characters the user had guessed in the previous word with the new mystery word
-                    putStrLn ("ATENÇÃO: A PALAVRA MUDOU! Sua nova dica é: " ++ newRevealedMysteryWord)
-                    return (newMysteryWord, newRevealedMysteryWord, newHint)
-                else return (mysteryWord, revealedMysteryWord, hint)
-            else return (mysteryWord, revealedMysteryWord, hint)
+                    putStrLn ("****** ATENÇÃO: A PALAVRA MUDOU! Suas vidas foram reiniciadas e sua nova dica é: " ++ newRevealedMysteryWord ++ ". *****")
+                    return (newMysteryWord, newRevealedMysteryWord, newHint, "")
+                else return (mysteryWord, revealedMysteryWord, hint, missedChars)
+            else return (mysteryWord, revealedMysteryWord, hint, missedChars)
         checkError :: String -> String -> String -> Char -> String
         checkError prevRevealedWord newRevealedWord missedChars guessedChar 
             | newRevealedWord == prevRevealedWord && not (elem guessedChar missedChars) = missedChars++[guessedChar]++" " -- the user's guess was incorrect and they have not been penalized for it yet
